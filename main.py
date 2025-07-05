@@ -1,7 +1,6 @@
 !pip install stable-baselines3[extra]
 !pip install gymnasium numpy
 
-
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -17,7 +16,7 @@ class SimpleFreewayEnv(gym.Env):
         self.observation_space = spaces.Box(low=0, high=2, shape=(height, width), dtype=np.float32)
         self.action_space = spaces.Discrete(3)
 
-        self.score = 0 
+        self.score = 0  
         self.reset()
 
     def reset(self, seed=None, options=None):
@@ -58,15 +57,19 @@ class SimpleFreewayEnv(gym.Env):
             if car['pos'] == self.agent_pos:
                 return self._get_obs(), -1.0, True, False, {}
 
+        reward = 0.0
         if self.agent_pos[0] == 0:
-            self.score += 1
-            return self._get_obs(), 1.0, True, False, {}
+          reward += 10.0
+          self.score += 1
+          self.agent_pos = [self.height - 1, self.width // 2]  # Reset to start without ending
+          if self.score >= 5:
+              return self._get_obs(), reward, True, False, {}
+
 
         self._maybe_spawn_car()
 
-        reward = 0.0
         if self.agent_pos[0] < old_row:
-            reward += 0.25
+            reward += 1
         else:
             reward -= 0.1
 
@@ -105,8 +108,6 @@ class SimpleFreewayEnv(gym.Env):
         pass
 
 
-
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
@@ -118,28 +119,40 @@ def make_env():
 env = DummyVecEnv([make_env])
 
 
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=200_000) 
+model = PPO(
+    "MlpPolicy",
+    env,
+    learning_rate=3e-4,
+    n_steps=2048,
+    batch_size=64,
+    gamma=0.99,
+    gae_lambda=0.95,
+    ent_coef=0.001,
+    clip_range=0.2,
+    n_epochs=10,
+    policy_kwargs=dict(net_arch=[dict(pi=[128, 128], vf=[128, 128])]),
+    verbose=1,
+    tensorboard_log="./ppo_simple_freeway_tensorboard/"
+)
+model.learn(total_timesteps=100_000) 
 model.save("ppo_simple_freeway")
 
-
-
+import time
+import numpy as np
+from stable_baselines3 import PPO
 
 env = SimpleFreewayEnv(render_mode='human', difficulty=5)
-import time
+
+model = PPO.load("ppo_simple_freeway", env=env)
+
 obs, _ = env.reset()
 total_score = 0
-
-model = PPO.load("ppo_simple_freeway")
-
-env = SimpleFreewayEnv(render_mode='human', difficulty=1)
 
 while True:
     action, _ = model.predict(obs, deterministic=True)
     obs, reward, done, _, _ = env.step(action)
     env.render()
     print(f"🎯 Reward this step: {reward}\n")
-    time.sleep(0.1)
 
     if done:
         if reward == 1.0:
@@ -152,6 +165,8 @@ while True:
         else:
             print("💥 Crashed! Exiting...")
             break
+
+env.close()
 
 
 # human mode 
