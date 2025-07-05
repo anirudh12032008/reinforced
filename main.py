@@ -17,7 +17,7 @@ class SimpleFreewayEnv(gym.Env):
         self.observation_space = spaces.Box(low=0, high=2, shape=(height, width), dtype=np.float32)
         self.action_space = spaces.Discrete(3)
 
-        self.score = 0  # Total successes
+        self.score = 0 
         self.reset()
 
     def reset(self, seed=None, options=None):
@@ -111,16 +111,15 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-# Wrap your environment
-# To use it with PPO
+
 def make_env():
-    return SimpleFreewayEnv(difficulty=6)  # Difficulty from 1–10
+    return SimpleFreewayEnv(difficulty=6)  
 
 env = DummyVecEnv([make_env])
 
 
 model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=200_000)  # More steps helps now!
+model.learn(total_timesteps=200_000) 
 model.save("ppo_simple_freeway")
 
 
